@@ -80,119 +80,74 @@ bind_static_mesh :: ( using mesh : *Static_Mesh ){
     glBindVertexArray(0);
 }
 
-create_shader :: ( vert_file_path : string, frag_file_path : string ) -> GLuint {
 
-    create_shader_type :: ( file_path : string, type : GLenum ) -> GLuint {
-        shader_id : GLuint = glCreateShader( type );
 
-        shader_source := read_entire_file( file_path );
-        defer free( shader_source );
+// create_quad_xy :: ( rm : *Render_Manager, center : Vector3, width : float, height : float ) -> *Static_Mesh {
 
-        shader_length : GLint = xx shader_source.count;
+//     quad := create_static_mesh(*render_manager);
+//     using quad;
 
-        glShaderSource(shader_id, 1, *shader_source.data, *shader_length);
+//     init_static_mesh( quad, 4, 2 );
 
-        glCompileShader(shader_id);
+//     half_width := width * 0.5;
+//     half_height := height * 0.5;
 
-        success : GLint;
-        glGetShaderiv( shader_id, GL_COMPILE_STATUS, *success );
+//     vertices[0] = make_vector3(center.x - half_width, center.y - half_height, center.z);
+//     vertices[1] = make_vector3(center.x + half_width, center.y - half_height, center.z);
+//     vertices[2] = make_vector3(center.x + half_width, center.y + half_height, center.z);
+//     vertices[3] = make_vector3(center.x - half_width, center.y + half_height, center.z);
 
-        if( !success ){
-            errorLog := talloc_string(512);
-            glGetShaderInfoLog( shader_id, size_of(type_of(errorLog)), null, errorLog.data );
-            print("Creating shader '%' failed: %\n", file_path, errorLog );
-            shader_id = 0;
-        }
+//     colors[0] = make_vector3(1.0);
+//     colors[1] = make_vector3(1.0);
+//     colors[2] = make_vector3(1.0);
+//     colors[3] = make_vector3(1.0);
 
-        return shader_id;
-    }
+//     uvs[0] = make_vector2(0.0, 1.0);
+//     uvs[1] = make_vector2(1.0, 1.0);
+//     uvs[2] = make_vector2(1.0, 0.0);
+//     uvs[3] = make_vector2(0.0, 0.0);
 
-    vertex_shader := create_shader_type( vert_file_path, GL_VERTEX_SHADER );
-    fragment_shader := create_shader_type( frag_file_path, GL_FRAGMENT_SHADER );
+//     indices[0] = 0;
+//     indices[1] = 1;
+//     indices[2] = 2;
+//     indices[3] = 2;
+//     indices[4] = 3;
+//     indices[5] = 0;
 
-    defer {
-        glDeleteShader(vertex_shader);
-        glDeleteShader(fragment_shader);
-    }
+//     return quad;
+// }
 
-    if( !vertex_shader || !fragment_shader ) {
-        return 0;
-    }
+// create_ui_quad_xy :: ( rm : *Render_Manager, center : Vector3, width : float, height : float ) -> *Static_Mesh {
 
-    shader := glCreateProgram();
-    glAttachShader( shader, vertex_shader );
-    glAttachShader( shader, fragment_shader );
-    glLinkProgram( shader );
+//     quad := create_ui_mesh(*render_manager);
+//     using quad;
 
-    return shader;
-}
+//     init_static_mesh( quad, 4, 2 );
 
-create_quad_xy :: ( rm : *Render_Manager, center : Vector3, width : float, height : float ) -> *Static_Mesh {
+//     half_width := width * 0.5;
+//     half_height := height * 0.5;
 
-    quad := create_static_mesh(*render_manager);
-    using quad;
+//     vertices[0] = make_vector3(center.x - half_width, center.y - half_height, center.z);
+//     vertices[1] = make_vector3(center.x + half_width, center.y - half_height, center.z);
+//     vertices[2] = make_vector3(center.x + half_width, center.y + half_height, center.z);
+//     vertices[3] = make_vector3(center.x - half_width, center.y + half_height, center.z);
 
-    init_static_mesh( quad, 4, 2 );
+//     colors[0] = make_vector3(1.0);
+//     colors[1] = make_vector3(1.0);
+//     colors[2] = make_vector3(1.0);
+//     colors[3] = make_vector3(1.0);
 
-    half_width := width * 0.5;
-    half_height := height * 0.5;
+//     uvs[0] = make_vector2(0.0, 1.0);
+//     uvs[1] = make_vector2(1.0, 1.0);
+//     uvs[2] = make_vector2(1.0, 0.0);
+//     uvs[3] = make_vector2(0.0, 0.0);
 
-    vertices[0] = make_vector3(center.x - half_width, center.y - half_height, center.z);
-    vertices[1] = make_vector3(center.x + half_width, center.y - half_height, center.z);
-    vertices[2] = make_vector3(center.x + half_width, center.y + half_height, center.z);
-    vertices[3] = make_vector3(center.x - half_width, center.y + half_height, center.z);
+//     indices[0] = 0;
+//     indices[1] = 1;
+//     indices[2] = 2;
+//     indices[3] = 2;
+//     indices[4] = 3;
+//     indices[5] = 0;
 
-    colors[0] = make_vector3(1.0);
-    colors[1] = make_vector3(1.0);
-    colors[2] = make_vector3(1.0);
-    colors[3] = make_vector3(1.0);
-
-    uvs[0] = make_vector2(0.0, 1.0);
-    uvs[1] = make_vector2(1.0, 1.0);
-    uvs[2] = make_vector2(1.0, 0.0);
-    uvs[3] = make_vector2(0.0, 0.0);
-
-    indices[0] = 0;
-    indices[1] = 1;
-    indices[2] = 2;
-    indices[3] = 2;
-    indices[4] = 3;
-    indices[5] = 0;
-
-    return quad;
-}
-
-create_ui_quad_xy :: ( rm : *Render_Manager, center : Vector3, width : float, height : float ) -> *Static_Mesh {
-
-    quad := create_ui_mesh(*render_manager);
-    using quad;
-
-    init_static_mesh( quad, 4, 2 );
-
-    half_width := width * 0.5;
-    half_height := height * 0.5;
-
-    vertices[0] = make_vector3(center.x - half_width, center.y - half_height, center.z);
-    vertices[1] = make_vector3(center.x + half_width, center.y - half_height, center.z);
-    vertices[2] = make_vector3(center.x + half_width, center.y + half_height, center.z);
-    vertices[3] = make_vector3(center.x - half_width, center.y + half_height, center.z);
-
-    colors[0] = make_vector3(1.0);
-    colors[1] = make_vector3(1.0);
-    colors[2] = make_vector3(1.0);
-    colors[3] = make_vector3(1.0);
-
-    uvs[0] = make_vector2(0.0, 1.0);
-    uvs[1] = make_vector2(1.0, 1.0);
-    uvs[2] = make_vector2(1.0, 0.0);
-    uvs[3] = make_vector2(0.0, 0.0);
-
-    indices[0] = 0;
-    indices[1] = 1;
-    indices[2] = 2;
-    indices[3] = 2;
-    indices[4] = 3;
-    indices[5] = 0;
-
-    return quad;
-}
+//     return quad;
+// }

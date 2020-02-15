@@ -25,6 +25,9 @@ build :: () {
 	build_options.output_type = Build_Output_Type.EXECUTABLE;
 	build_options.output_executable_name = executable_name;
 	build_options.output_path = build_directory;
+	array_add( *build_options.modules_search_path_array, "src/modules/" );
+
+	set_build_options( build_options, w );
 
 	// handle arguments
 	run_on_success := false;
@@ -105,7 +108,6 @@ build :: () {
 
 	success := false;
 
-	set_build_options( build_options, w );
 	compiler_begin_intercept(w);
 
 	add_build_file("src/netrix.jai", w);

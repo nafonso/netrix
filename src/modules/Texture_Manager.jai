@@ -3,6 +3,8 @@
 #import "GL";
 #import "Basic";
 #import "String";
+#import "System";
+
 
 Texture_Info :: struct {
     id : GLuint;
@@ -30,11 +32,11 @@ init_texture_manager :: (tm : *Texture_Manager, base_path : string) {
     // tm.path_buffer = append(tm.path_buffer, tm.base_path, tm.path_buffer_size);
 }
 
-deinit_texture_manager :: (using tm : *Texture_Manager) {
-    uninit(*texture_table);
+deinit_texture_manager :: (tm : *Texture_Manager) {
+    uninit(*tm.texture_table);
 }
 
-get_texture :: ( using tm : *Texture_Manager, requester : Any, texture_path : string ) -> GLuint {
+get_texture :: (using tm : *Texture_Manager, texture_path : string, requester : Any) -> GLuint {
     texture_info := table_find_pointer( texture_table, texture_path );
 
     if texture_info == null {
@@ -62,7 +64,9 @@ get_texture :: ( using tm : *Texture_Manager, requester : Any, texture_path : st
         channels_enum : GLenum = GL_RGB;
         if num_channels == 4 channels_enum = GL_RGBA;
 
-        glTexImage2D(GL_TEXTURE_2D, 0, xx channels_enum, xx width, xx height, 0, channels_enum, GL_UNSIGNED_BYTE, data );
+        // glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        // glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+        glTexImage2D(GL_TEXTURE_2D, 0, xx channels_enum, xx width, xx height, 0, channels_enum, GL_UNSIGNED_BYTE, data);
         glGenerateMipmap(GL_TEXTURE_2D);
 
         stbi_image_free(data);
@@ -76,6 +80,10 @@ get_texture :: ( using tm : *Texture_Manager, requester : Any, texture_path : st
     return texture_info.id;
 }
 
-get_texture_info :: ( using tm : *Texture_Manager, requester : $T, texture_path : string ) -> *Texture_Info {
-    return table_find_pointer( *texture_table, texture_path );
+get_texture_info :: (using tm : *Texture_Manager, texture_path : string, requester : Any) -> *Texture_Info {
+    texture_info : *Texture_Info = table_find_pointer( texture_table, texture_path );
+    if texture_info {
+        array_add( *texture_info.requesters, requester );
+    }
+    return texture_info;
 }
