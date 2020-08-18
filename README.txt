@@ -10,6 +10,12 @@ https://twitter.com/nafonsopt
 
 
 
+## How To Get Executable ##
+
+You can get the executable built (along with all source code) at https://nafonso.itch.io/netrix .
+
+
+
 ## How To Build ##
     jai build.jai
 
