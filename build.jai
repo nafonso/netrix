@@ -26,6 +26,7 @@ build :: () {
 	build_options.output_executable_name = executable_name;
 	build_options.output_path = build_directory;
 	array_add( *build_options.modules_search_path_array, "src/modules/" );
+	array_add( *build_options.modules_search_path_array, "C:/jai-modules/" );
 
 	set_build_options( build_options, w );
 
@@ -35,8 +36,16 @@ build :: () {
 
 	args := compiler_get_command_line_arguments();
 
+	game_run_args : [..]string;
+	defer array_reset(*game_run_args);
+
+	array_add(*game_run_args, executable_path);
+
 	for args {
-		if it == {
+		if it[0] == #char "-" {
+			array_add(*game_run_args, it);
+		}
+		else if it == {
 			case "run";
 			run_on_success = true;
 			case "codeonly";
@@ -110,7 +119,7 @@ build :: () {
 
 	compiler_begin_intercept(w);
 
-	add_build_file("src/netrix.jai", w);
+	add_build_file("src/main.jai", w);
 
 	while true {
         message := compiler_wait_for_message();
@@ -121,7 +130,7 @@ build :: () {
 
         if message.kind == Compiler_Message.Kind.COMPLETE {
 			message_complete := cast(*Compiler_Message_Complete)message;
-			success = message_complete.error_code == Completion_Error_Code.CM_COMPLETE_ERROR_NONE;
+			success = message_complete.error_code == Completion_Error_Code.NONE;
 
             break; // Done compiling.
         }
@@ -130,7 +139,7 @@ build :: () {
 	compiler_end_intercept(w);
 
 	if( success && run_on_success ){
-		os_run_command(executable_path);
+		os_run_command(..game_run_args);
 	}
 }
 

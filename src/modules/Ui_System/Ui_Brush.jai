@@ -7,8 +7,9 @@ Ui_Brush_Type :: enum u8 {
 }
 
 Ui_Brush :: struct {
-    type    : Ui_Brush_Type;
-    texture : GLuint;
+    type        : Ui_Brush_Type;
+    texture     : GLuint;
+    tint_color  : Vector4;
     
     calc_desired_size := ui_default_calc_desired_size;
 
@@ -19,9 +20,16 @@ Ui_Brush :: struct {
     }
 }
 
+Ui_Border :: struct {
+    left    : float;
+    right   : float;
+    top     : float;
+    bottom  : float;
+}
+
 Ui_Brush_Sliced :: struct {
-    uv_slice : float; // uv border edge
-    border   : float; // border in pixels
+    border      : Ui_Border; // border in pixels
+    uv_slice    : Ui_Border; // uv border edge
 }
 
 Ui_Brush_Tiled :: struct {
@@ -41,6 +49,24 @@ brush_sliced :: (texture : GLuint, border : float = 10, uv_slice : float = 0.25)
     brush : Ui_Brush = ---;
     brush.type = Ui_Brush_Type.SLICED;
     brush.texture = texture;
+    brush.tint_color = make_vector4(1, 1, 1, 1);
+    brush.calc_desired_size = ui_default_calc_desired_size;
+    brush.sliced.border.left = border;
+    brush.sliced.border.right = border;
+    brush.sliced.border.top = border;
+    brush.sliced.border.bottom = border;
+    brush.sliced.uv_slice.left = uv_slice;
+    brush.sliced.uv_slice.right = uv_slice;
+    brush.sliced.uv_slice.top = uv_slice;
+    brush.sliced.uv_slice.bottom = uv_slice;
+    return brush;
+}
+
+brush_sliced :: (texture : GLuint, border : Ui_Border, uv_slice : Ui_Border) -> Ui_Brush {
+    brush : Ui_Brush = ---;
+    brush.type = Ui_Brush_Type.SLICED;
+    brush.texture = texture;
+    brush.tint_color = make_vector4(1, 1, 1, 1);
     brush.calc_desired_size = ui_default_calc_desired_size;
     brush.sliced.border = border;
     brush.sliced.uv_slice = uv_slice;
@@ -51,6 +77,7 @@ brush_stretched :: (texture : GLuint) -> Ui_Brush {
     brush : Ui_Brush = ---;
     brush.type = Ui_Brush_Type.STRETCHED;
     brush.texture = texture;
+    brush.tint_color = make_vector4(1, 1, 1, 1);
     brush.calc_desired_size = ui_default_calc_desired_size;
     return brush;
 }
@@ -59,6 +86,7 @@ brush_tiled :: (texture : GLuint, x_repeat : float = 32, y_repeat : float = 32 )
     brush : Ui_Brush = ---;
     brush.type = Ui_Brush_Type.TILED;
     brush.texture = texture;
+    brush.tint_color = make_vector4(1, 1, 1, 1);
     brush.calc_desired_size = ui_default_calc_desired_size;
     brush.tiled.x_repeat = x_repeat;
     brush.tiled.y_repeat = y_repeat;
@@ -71,6 +99,7 @@ brush_text :: (text : string, font : *Dynamic_Font) -> Ui_Brush {
     brush : Ui_Brush = ---;
     brush.type = Ui_Brush_Type.TEXT;
     brush.texture = 0;
+    brush.tint_color = make_vector4(1, 1, 1, 1);
     brush.calc_desired_size = ui_text_calc_desired_size;
     brush.text.font = font;
     assert(brush.text.font != null);
@@ -161,15 +190,16 @@ ui_tiled_indices :: (vertex_offset : u32) -> [6]u32 {
 }
 
 ui_text_vertex_buffer :: (pos : Vector2, brush : *Ui_Brush) -> []float {
-
     for * brush.text.vertex_buffer {
         it.x += pos.x;
         it.y += pos.y;
     }
 
     float_buffer : []float;
-    float_buffer.data = *brush.text.vertex_buffer[0].x;
-    float_buffer.count = brush.text.vertex_buffer.count * 4;
+    if brush.text.vertex_buffer.count > 0 {
+        float_buffer.data = *brush.text.vertex_buffer[0].x;
+        float_buffer.count = brush.text.vertex_buffer.count * 4;
+    }
 
     return float_buffer;
 }
@@ -200,12 +230,29 @@ ui_debug_vertex_buffer :: (pos : Vector2, size : Vector2 ) -> [8]float {
 }
 
 ui_default_calc_desired_size :: (e : *Ui_Element) -> Vector2 {
-    return e.max_size;
+    if e.fill {
+        return e.max_size;
+    }
+
+    desired_size : Vector2;
+
+    for child : e.children {
+        child_desired_size := child.brush.calc_desired_size(child);
+        desired_size.x = max(desired_size.x, child_desired_size.x);
+        desired_size.y = max(desired_size.y, child_desired_size.y);
+    }
+
+    total_padding := e.padding + e.padding;
+
+    desired_size.x += total_padding;
+    desired_size.y += total_padding;
+
+    return desired_size;
 }
 
 ui_text_calc_desired_size :: (e : *Ui_Element) -> Vector2 {
     using e.brush;
-    prep_text_flipped(text.font, 0, 0, make_vector4(1.0, 1.0, 1.0, 1.0), text.str, 0);
+    prep_text_flipped(text.font, e.margin, e.margin, make_vector4(1.0, 1.0, 1.0, 1.0), text.str, 0);
 
     // clear storage, temporary storage doesn't actually free
     array_reset(*text.vertex_buffer);
@@ -261,8 +308,10 @@ ui_text_calc_desired_size :: (e : *Ui_Element) -> Vector2 {
         }
     }
 
+    if e.fill return e.max_size;
+
     desired_size := make_vector2( max(e.min_size.x, max_x - min_x), max(e.min_size.y, xx text.font.typical_ascender));
-    desired_size += make_vector2(e.margin+e.margin);
+    desired_size += make_vector2(e.margin);
     return desired_size;
 }
 
@@ -275,7 +324,7 @@ ui_text_calc_desired_size :: (e : *Ui_Element) -> Vector2 {
 // |  |     |  |
 // 3__4_____5__6
 // 16 x vec4 (xy = pos, zw = uv)
-ui_sliced_vertex_buffer :: (pos : Vector2, size : Vector2, border : float, uv_slice : float) -> [64]float {
+ui_sliced_vertex_buffer :: (pos : Vector2, size : Vector2, border : Ui_Border, uv_slice : Ui_Border) -> [64]float {
     vertex_buffer : [64]float;
 
     vectors : []Vector4;
@@ -285,50 +334,50 @@ ui_sliced_vertex_buffer :: (pos : Vector2, size : Vector2, border : float, uv_sl
     vectors[0].xy = pos;
     vectors[0].zw = make_vector2(0.0,0.0);
 
-    vectors[1].xy = pos + make_vector2(0.0, border);
-    vectors[1].zw = make_vector2(0.0,uv_slice);
+    vectors[1].xy = pos + make_vector2(0.0, border.top);
+    vectors[1].zw = make_vector2(0.0,uv_slice.top);
 
-    vectors[2].xy = pos + make_vector2(0, size.y-border);
-    vectors[2].zw = make_vector2(0.0,1.0-uv_slice);
+    vectors[2].xy = pos + make_vector2(0, size.y-border.bottom);
+    vectors[2].zw = make_vector2(0.0,1.0-uv_slice.bottom);
 
     vectors[3].xy = pos + make_vector2(0, size.y);
     vectors[3].zw = make_vector2(0.0,1.0);
 
-    vectors[4].xy = pos + make_vector2(border, size.y);
-    vectors[4].zw = make_vector2(uv_slice,1.0);
+    vectors[4].xy = pos + make_vector2(border.left, size.y);
+    vectors[4].zw = make_vector2(uv_slice.left,1.0);
 
-    vectors[5].xy = pos + make_vector2(size.x-border, size.y);
-    vectors[5].zw = make_vector2(1.0-uv_slice,1.0);
+    vectors[5].xy = pos + make_vector2(size.x-border.right, size.y);
+    vectors[5].zw = make_vector2(1.0-uv_slice.right,1.0);
 
     vectors[6].xy = pos + make_vector2(size.x, size.y);
     vectors[6].zw = make_vector2(1.0,1.0);
 
-    vectors[7].xy = pos + make_vector2(size.x, size.y-border);
-    vectors[7].zw = make_vector2(1.0,1.0-uv_slice);
+    vectors[7].xy = pos + make_vector2(size.x, size.y-border.bottom);
+    vectors[7].zw = make_vector2(1.0,1.0-uv_slice.bottom);
 
-    vectors[8].xy = pos + make_vector2(size.x, border);
-    vectors[8].zw = make_vector2(1.0,uv_slice);
+    vectors[8].xy = pos + make_vector2(size.x, border.top);
+    vectors[8].zw = make_vector2(1.0,uv_slice.top);
 
     vectors[9].xy = pos + make_vector2(size.x, 0.0);
     vectors[9].zw = make_vector2(1.0,0.0);
 
-    vectors[10].xy = pos + make_vector2(size.x-border, 0.0);
-    vectors[10].zw = make_vector2(1.0-uv_slice,0.0);
+    vectors[10].xy = pos + make_vector2(size.x-border.right, 0.0);
+    vectors[10].zw = make_vector2(1.0-uv_slice.right,0.0);
 
-    vectors[11].xy = pos + make_vector2(border, 0.0);
-    vectors[11].zw = make_vector2(uv_slice,0.0);
+    vectors[11].xy = pos + make_vector2(border.left, 0.0);
+    vectors[11].zw = make_vector2(uv_slice.left,0.0);
 
-    vectors[12].xy = pos + make_vector2(border, border);
-    vectors[12].zw = make_vector2(uv_slice,uv_slice);
+    vectors[12].xy = pos + make_vector2(border.left, border.top);
+    vectors[12].zw = make_vector2(uv_slice.left,uv_slice.top);
 
-    vectors[13].xy = pos + make_vector2(border, size.y-border);
-    vectors[13].zw = make_vector2(uv_slice, 1.0-uv_slice);
+    vectors[13].xy = pos + make_vector2(border.left, size.y-border.bottom);
+    vectors[13].zw = make_vector2(uv_slice.left, 1.0-uv_slice.bottom);
 
-    vectors[14].xy = pos + make_vector2(size.x-border, size.y-border);
-    vectors[14].zw = make_vector2(1.0-uv_slice, 1.0-uv_slice);
+    vectors[14].xy = pos + make_vector2(size.x-border.right, size.y-border.bottom);
+    vectors[14].zw = make_vector2(1.0-uv_slice.right, 1.0-uv_slice.bottom);
 
-    vectors[15].xy = pos + make_vector2(size.x-border, border);
-    vectors[15].zw = make_vector2(1.0-uv_slice, uv_slice);
+    vectors[15].xy = pos + make_vector2(size.x-border.right, border.top);
+    vectors[15].zw = make_vector2(1.0-uv_slice.right, uv_slice.top);
 
     return vertex_buffer;
 }

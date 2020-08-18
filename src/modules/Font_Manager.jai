@@ -7,7 +7,7 @@ Font_Manager :: struct {
     font_table     : Table(string, *Dynamic_Font);
 }
 
-init_font_manager :: (fm : *Font_Manager, font_directory : string) {
+font_manager_init :: (fm : *Font_Manager, font_directory : string) {
     init( *fm.font_table, 32 );
     fm.font_directory = font_directory;
 }

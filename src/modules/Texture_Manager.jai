@@ -23,7 +23,7 @@ Texture_Manager :: struct {
     path_buffer_size :: 512;
 }
 
-init_texture_manager :: (tm : *Texture_Manager, base_path : string) {
+texture_manager_init :: (tm : *Texture_Manager, base_path : string) {
     init( *tm.texture_table, 32 );
     
     // tm.path_buffer = alloc_string(512); // have base buffer for non-allocing
@@ -32,7 +32,7 @@ init_texture_manager :: (tm : *Texture_Manager, base_path : string) {
     // tm.path_buffer = append(tm.path_buffer, tm.base_path, tm.path_buffer_size);
 }
 
-deinit_texture_manager :: (tm : *Texture_Manager) {
+texture_manager_deinit :: (tm : *Texture_Manager) {
     uninit(*tm.texture_table);
 }
 
